@@ -5,6 +5,9 @@
     1. [Directory Fuzzing](#directory-fuzzing)
     2. [Page Fuzzing](#page-fuzzing)
     3. [Recursive Fuzzing](#recursive-fuzzing)
+2. [Domain Fuzzing](#domain-fuzzing)
+    1. [Sub-domain Fuzzing](#sub-domain-fuzzing)
+    2. [Filtering Results](#filtering-results)
 
 ## Basic Fuzzing
 ### Directory Fuzzing
@@ -43,5 +46,37 @@
     ffuf -ic -w /opt/useful/seclists/Discovery/Web-Content/directory-list-2.3-small.txt:FUZZ -u http://83.136.254.49:43577/FUZZ -recursion -recursion-depth 1 -e .php -t 2000 -fs 986
     ```
     ![alt text](<Assets/Recursive Fuzzing - 1.png>)
-    
+
     We will find the correct path is `83.136.254.49:43577/forum/flag.php`. The answer is `HTB{fuzz1n6_7h3_w3b!}`.
+
+## Domain Fuzzing
+### Sub-domain Fuzzing
+#### Challenges
+1. Try running a sub-domain fuzzing test on 'inlanefreight.com' to find a customer sub-domain portal. What is the full domain of it?
+
+    We can `fuzz` by using `ffuf` again. But instead of fuzzing folder, we will be fuzzing sub-domain.
+
+    ```bash
+    ffuf -w /opt/useful/seclists/Discovery/DNS/subdomains-top1million-5000.txt:FUZZ -u https://FUZZ.inlanefreight.com/
+    ```
+    ![alt text](<Assets/Sub-domain Fuzzing - 1.png>)
+
+    We will find the correct sub-domain is `customer`. The answer is `customer.inlanefreight.com`.
+
+### Filtering Results
+#### Challenges
+1. Try running a VHost fuzzing scan on 'academy.htb', and see what other VHosts you get. What other VHosts did you get?
+
+    Firs, we need to edit `/etc/hosts`. So if we tried to access `academy.htb` that it will knows to go to the correct ip.
+
+    ```bash
+    sudo sh -c 'echo "83.136.254.49  academy.htb" >> /etc/hosts'
+    ```
+    Then, we can run ffuf.
+
+    ```bash
+    ffuf -w /opt/useful/seclists/Discovery/DNS/subdomains-top1million-5000.txt:FUZZ -u http://academy.htb:43577/ -H 'Host: FUZZ.academy.htb' -fs 986
+    ```
+    ![alt text](<Assets/Filtering Results - 1.png>)
+
+    The answer is `test.academy.htb`.
