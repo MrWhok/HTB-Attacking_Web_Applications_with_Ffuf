@@ -8,6 +8,9 @@
 2. [Domain Fuzzing](#domain-fuzzing)
     1. [Sub-domain Fuzzing](#sub-domain-fuzzing)
     2. [Filtering Results](#filtering-results)
+3. [Parameter Fuzzing](#parameter-fuzzing)
+    1. [Parameter Fuzzing - GET](#parameter-fuzzing---get)
+    2. [Value Fuzzing](#value-fuzzing)
 
 ## Basic Fuzzing
 ### Directory Fuzzing
@@ -80,3 +83,38 @@
     ![alt text](<Assets/Filtering Results - 1.png>)
 
     The answer is `test.academy.htb`.
+
+## Parameter Fuzzing
+### Parameter Fuzzing - GET
+#### Challenges
+1. Using what you learned in this section, run a parameter fuzzing scan on this page. What is the parameter accepted by this webpage?
+
+    We need to update `/etc/hosts`, adding `admin.academy.htb`. Then we can run `ffuf`.
+
+    ```bash
+    ffuf -w /opt/useful/seclists/Discovery/Web-Content/burp-parameter-names.txt:FUZZ -u http://admin.academy.htb:43577/admin/admin.php?FUZZ=key -fs 798
+    ```
+    The answer is `user`.
+
+### Value Fuzzing
+#### Challenges
+1. Try to create the 'ids.txt' wordlist, identify the accepted value with a fuzzing scan, and then use it in a 'POST' request with 'curl' to collect the flag. What is the content of the flag?
+
+    To solve this, first we need create ids.txt.
+
+    ```bash
+    for i in $(seq 1 1000); do echo $i >> ids.txt; done
+    ```
+    Then we can use `ffuf` to do fuzzing.
+
+    ```bash
+    ffuf -w ids.txt:FUZZ -u http://admin.academy.htb:43577/admin/admin.php -X POST -d 'id=FUZZ' -H 'Content-Type: application/x-www-form-urlencoded' -fs 768
+    ```
+    ![alt text](<Assets/Value Fuzzing - 1.png>)
+
+    We can see the correct value is `73`. Then we can use curl to retive the flag.
+
+    ```bash
+    curl http://admin.academy.htb:43577/admin/admin.php -X POST -d 'id=73' -H 'Content-Type: application/x-www-form-urlencoded'
+    ```
+    The answer is `HTB{p4r4m373r_fuzz1n6_15_k3y!}`.
