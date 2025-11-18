@@ -11,6 +11,7 @@
 3. [Parameter Fuzzing](#parameter-fuzzing)
     1. [Parameter Fuzzing - GET](#parameter-fuzzing---get)
     2. [Value Fuzzing](#value-fuzzing)
+4. [Skill Assessment](#skills-assessment)
 
 ## Basic Fuzzing
 ### Directory Fuzzing
@@ -118,3 +119,93 @@
     curl http://admin.academy.htb:43577/admin/admin.php -X POST -d 'id=73' -H 'Content-Type: application/x-www-form-urlencoded'
     ```
     The answer is `HTB{p4r4m373r_fuzz1n6_15_k3y!}`.
+
+## Skills Assessment
+1. Run a sub-domain/vhost fuzzing scan on '*.academy.htb' for the IP shown above. What are all the sub-domains you can identify? (Only write the sub-domain name)
+
+    First we need to edit `/etc/hosts` file.
+
+    ```bash
+    sudo sh -c 'echo "83.136.251.210  academy.htb" >> /etc/hosts'
+    ```
+    Then we can run `ffuf` to find all vhosts.
+
+    ```bash
+    ffuf -w /opt/useful/seclists/Discovery/DNS/subdomains-top1million-5000.txt:FUZZ -u http://academy.htb:43016/ -H 'Host: FUZZ.academy.htb' -fs 985
+    ```
+    The answer is `test, archive, faculty`.
+
+2. Before you run your page fuzzing scan, you should first run an extension fuzzing scan. What are the different extensions accepted by the domains?
+
+    First we need to edit `/etc/hosts` again to be like this.
+
+    ```bash
+    83.136.251.210  academy.htb test.academy.htb archive.academy.htb faculty.academy.htb
+    ```
+
+   Then we can try to fuzz the extension.
+
+    ```bash
+    ffuf -w /opt/useful/seclists/Discovery/Web-Content/web-extensions.txt:FUZZ -u http://faculty.academy.htb:43016/indexFUZZ
+    ```
+    ![alt text](<Assets/Skills Assessment - 1.png>)
+
+    We can see 3 results. The asnwer is `.php, .phps, php7`.
+
+3. One of the pages you will identify should say 'You don't have access!'. What is the full page URL?
+
+    After doing trial and error,  I found that `faculty.academy.htb` has `/courses` folder. Here the command that i used to find that.
+
+    ```bash
+    ffuf -w /opt/useful/seclists/Discovery/Web-Content/directory-list-2.3-small.txt:FUZZ -u http://faculty.academy.htb:43016/FUZZ -ic -t 2000
+    ```
+    Then, i tried to fuzz *.php, *.phps, and *.php7. I found interesting file in the *.php7 result.
+
+    ```bash
+    ffuf -w /opt/useful/seclists/Discovery/Web-Content/directory-list-2.3-small.txt:FUZZ -u http://faculty.academy.htb:43016/courses/FUZZ.php7
+    ```
+    ![alt text](<Assets/Skills Assessment - 2.png>)
+
+    When we check `http://faculty.academy.htb:PORT/courses/linux-security.php7`, we got this.
+
+    ![alt text](<Assets/Skills Assessment - 3.png>)
+
+    So the correct answer is `http://faculty.academy.htb:PORT/courses/linux-security.php7`.
+
+4. In the page from the previous question, you should be able to find multiple parameters that are accepted by the page. What are they?
+
+    To solve this, first we can try to fuzz the GET parameter.
+
+    ```bash
+    ffuf -w /opt/useful/seclists/Discovery/Web-Content/burp-parameter-names.txt:FUZZ -u http://faculty.academy.htb:43016/courses/linux-security.php7?FUZZ=key 
+    ```
+
+    ![alt text](<Assets/Skills Assessment - 4.png>)
+
+    We got `user` as the correct parameter. Then we can try to fuzz the POST parameter.
+
+    ```bash
+    ffuf -w /opt/useful/seclists/Discovery/Web-Content/burp-parameter-names.txt:FUZZ -u http://faculty.academy.htb:39871/courses/linux-security.php7 -X POST -d 'FUZZ=key' -H 'Content-Type: application/x-www-form-urlencoded' -fs 774
+    ```
+
+    ![alt text](<Assets/Skills Assessment - 5.png>)
+
+    We got `user` and `username` as the result. We can combine both result to get the answer. The answer is `user, username`.
+
+5. Try fuzzing the parameters you identified for working values. One of them should return a flag. What is the content of the flag?
+
+    In the previous, we have found the correct parameter. Now we need to find the correct value of it. We can use `/opt/useful/seclists/Usernames/Names/names.txt` as a wordlist.
+
+    ```bash
+    ffuf -w /opt/useful/seclists/Usernames/Names/names.txt:FUZZ -u http://faculty.academy.htb:39871/courses/linux-security.php7 -X POST -d 'username=FUZZ' -H 'Content-Type: application/x-www-form-urlencoded' -fs 774
+    ```
+
+    ![alt text](<Assets/Skills Assessment - 6.png>)
+
+    We can see, `harry` is the valid value. Then we can try to curl with that value.
+
+    ```bash
+    curl http://faculty.academy.htb:39871/courses/linux-security.php7 -X POST -d 'username=harry' -H 'Content-Type: application/x-www-form-urlencoded'
+    ```
+    The answer is `HTB{w3b_fuzz1n6_m4573r}`.
+
